@@ -29,7 +29,7 @@ static int messageSize = 0;
 static struct class * testdevClass = NULL;
 static struct device* testdevDevice = NULL;
 static DEFINE_MUTEX(testdev_mutex);
-EXPORT_SYMBOL(message);
+
 
 //prototypes for file ops
 static int dev_open(struct inode *inodep, struct file *filep);
@@ -134,11 +134,8 @@ static ssize_t dev_write(struct file* filep, const char* buffer, size_t len, lof
 	} else {
 		printk(KERN_INFO "testdev: Cannot receive characters from the user. Buffer full.\n");
 		return -1;
-
 	}
-
-
-	
 }
+EXPORT_SYMBOL(message);
 module_init(testdev_init);
 module_exit(testdev_exit);

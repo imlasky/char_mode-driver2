@@ -12,6 +12,8 @@ A simple kernel module: a charater-mode device driver
 #include <linux/fs.h>		//needed for character driver init
 #include <linux/init.h>
 #include <linux/uaccess.h>	//needed for copy_to_user
+#include <linux/mutex.h>
+#include "testdev1.h"
 
 #define DEVICE_NAME "testdev2"
 #define CLASS_NAME "chardev2"
@@ -23,7 +25,6 @@ MODULE_AUTHOR("OS Group 18");
 MODULE_DESCRIPTION("A simple character-mode Driver.");
 
 static int majorNumber;
-extern char *message;
 static int messageSize = 0;
 static struct class * testdev2Class = NULL;
 static struct device* testdev2Device = NULL;
