@@ -61,7 +61,7 @@ int main(){
 			perror("Failed to read the message from the device.");
 			return errno;
 		}
-		printf("The received message is: [%s]\n", receive);
+		printf("The received message is: [%.*s]\n", readLength, receive);
 	    }
 	    else
 	    {
