@@ -1,7 +1,7 @@
 /*
  
 COP 4600 - Operating Systems
-Programming Assignment 2
+Programming Assignment 3
 
 A simple kernel module: a charater-mode device driver
  */
