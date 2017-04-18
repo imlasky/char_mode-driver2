@@ -24,7 +24,7 @@ MODULE_AUTHOR("OS Group 18");
 MODULE_DESCRIPTION("A simple character-mode Driver.");
 
 static int majorNumber;
-static int messageSize = 0;
+extern int messageSize;
 extern char message[];
 static struct class * testdev2Class = NULL;
 static struct device* testdev2Device = NULL;
@@ -118,6 +118,7 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 		}
 		if (err == 0) {
 			printk(KERN_INFO "testdev2: Sent %d characters to the user\n",messageSize);
+			printk(KERN_INFO "testdev2: %s\n",message);
 			strcpy(message,"");
 			messageSize = 0;
 			mutex_unlock(&global_mutex);

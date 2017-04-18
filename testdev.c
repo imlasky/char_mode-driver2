@@ -138,5 +138,6 @@ static ssize_t dev_write(struct file* filep, const char* buffer, size_t len, lof
 }
 EXPORT_SYMBOL(global_mutex);
 EXPORT_SYMBOL(message);
+EXPORT_SYMBOL(messageSize);
 module_init(testdev_init);
 module_exit(testdev_exit);
