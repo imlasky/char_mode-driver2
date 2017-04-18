@@ -28,8 +28,7 @@ static char message[BUFF_SIZE] = {0};
 static int messageSize = 0;
 static struct class * testdevClass = NULL;
 static struct device* testdevDevice = NULL;
-static DEFINE_MUTEX(testdev_mutex);
-
+static DEFINE_MUTEX(global_mutex);
 
 //prototypes for file ops
 static int dev_open(struct inode *inodep, struct file *filep);
@@ -47,7 +46,7 @@ static struct file_operations fops =
 //Initialization: register a Major number, save it for later mknod
 static int __init testdev_init(void) {
 	//Request Major device number
-	mutex_init(&testdev_mutex);
+	mutex_init(&global_mutex);
 	majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
 	
 	if (majorNumber < 0) {
@@ -79,7 +78,7 @@ static int __init testdev_init(void) {
 
 //Exit: unregister the Major number
 static void __exit testdev_exit(void) {
-	mutex_destroy(&testdev_mutex);
+	mutex_destroy(&global_mutex);
 	device_destroy(testdevClass, MKDEV(majorNumber, 0));
 	printk(KERN_INFO "testdev: Destroyed device\n");
 	class_unregister(testdevClass);
@@ -93,17 +92,12 @@ static void __exit testdev_exit(void) {
 
 //Open: open the device
 static int dev_open(struct inode* inodep, struct file* filep) {
-	if(!mutex_trylock(&testdev_mutex)){
-		printk(KERN_ALERT "testdev: Device in use by another process");
-		return -EBUSY;
-	}
 	printk(KERN_INFO "testdev: Device opened.\n");
 	return 0;
 }
 
 //Release: close the device
 static int dev_release(struct inode* inodep, struct file* filep) {
-	mutex_unlock(&testdev_mutex);
 	printk(KERN_INFO "testdev: Device closed.\n");
 	return 0;
 }
@@ -111,6 +105,7 @@ static int dev_release(struct inode* inodep, struct file* filep) {
 //Write: write information to the device
 static ssize_t dev_write(struct file* filep, const char* buffer, size_t len, loff_t* offset) {
 	size_t space = BUFF_SIZE - messageSize;
+	mutex_lock(&global_mutex);
 	if (len > BUFF_SIZE)
 		len = BUFF_SIZE;
 	if (space > 0) {
@@ -118,24 +113,30 @@ static ssize_t dev_write(struct file* filep, const char* buffer, size_t len, lof
 			strcat(message,buffer);
 			messageSize = strlen(message);
 			printk(KERN_INFO "testdev: Received %zu characters from the user\n", len);
+			mutex_unlock(&global_mutex);
 			return len;
 		} else {
 			if (space == len) {
 				strcpy(message,buffer);
 				messageSize = BUFF_SIZE;
 				printk(KERN_INFO "testdev: Buffer full. Only wrote %zu characters from the user.\n",len);
+				mutex_unlock(&global_mutex);
 				return len;
 			}
 			strncat(message,buffer,len-space);
 			messageSize = strlen(message);
 			printk(KERN_INFO "testdev: Buffer full. Only wrote %zu characters from the user.\n", len-space);
+			mutex_unlock(&global_mutex);
 			return len-space;
 		}
 	} else {
 		printk(KERN_INFO "testdev: Cannot receive characters from the user. Buffer full.\n");
+		mutex_unlock(&global_mutex);
 		return -1;
 	}
+	mutex_unlock(&global_mutex);
 }
+EXPORT_SYMBOL(global_mutex);
 EXPORT_SYMBOL(message);
 module_init(testdev_init);
 module_exit(testdev_exit);

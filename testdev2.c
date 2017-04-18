@@ -13,7 +13,6 @@ A simple kernel module: a charater-mode device driver
 #include <linux/init.h>
 #include <linux/uaccess.h>	//needed for copy_to_user
 #include <linux/mutex.h>
-#include "testdev1.h"
 
 #define DEVICE_NAME "testdev2"
 #define CLASS_NAME "chardev2"
@@ -26,10 +25,10 @@ MODULE_DESCRIPTION("A simple character-mode Driver.");
 
 static int majorNumber;
 static int messageSize = 0;
+extern char message[];
 static struct class * testdev2Class = NULL;
 static struct device* testdev2Device = NULL;
-static DEFINE_MUTEX(testdev2_mutex);
-
+extern struct mutex global_mutex;
 //prototypes for file ops
 static int dev_open(struct inode *inodep, struct file *filep);
 static int dev_release(struct inode* inodep, struct file* filep);
@@ -45,7 +44,6 @@ static struct file_operations fops =
 
 //Initialization: register a Major number, save it for later mknod
 static int __init testdev2_init(void) {
-	mutex_init(&testdev2_mutex);
 	//Request Major device number
 	majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
 	
@@ -78,7 +76,6 @@ static int __init testdev2_init(void) {
 
 //Exit: unregister the Major number
 static void __exit testdev2_exit(void) {
-	mutex_destroy(&testdev2_mutex);
 	device_destroy(testdev2Class, MKDEV(majorNumber, 0));
 	printk(KERN_INFO "testdev2: Destroyed device\n");
 	class_unregister(testdev2Class);
@@ -92,17 +89,12 @@ static void __exit testdev2_exit(void) {
 
 //Open: open the device
 static int dev_open(struct inode* inodep, struct file* filep) {
-	if(!mutex_trylock(&testdev2_mutex)){
-		printk(KERN_ALERT "testdev2: Device in use by another process");
-		return -EBUSY;
-	}
 	printk(KERN_INFO "testdev2: Device opened.\n");
 	return 0;
 }
 
 //Release: close the device
 static int dev_release(struct inode* inodep, struct file* filep) {
-	mutex_unlock(&testdev2_mutex);
 	printk(KERN_INFO "testdev2: Device closed.\n");
 	return 0;
 }
@@ -113,6 +105,10 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 	int err = 0;
 	static char messageTemp [BUFF_SIZE] = {0};
 	size_t i;
+	if(!mutex_trylock(&global_mutex)){
+		printk(KERN_ALERT "testdev2: Device in use by another process");
+		return -EBUSY;
+	}
 
 	if (len >= messageSize) {
 		if (messageSize == 0 ) {
@@ -124,9 +120,11 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 			printk(KERN_INFO "testdev2: Sent %d characters to the user\n",messageSize);
 			strcpy(message,"");
 			messageSize = 0;
+			mutex_unlock(&global_mutex);
 			return 0;
 		} else {
 			printk(KERN_INFO "testdev2: Failed to send %d characters to the user.\n",messageSize);
+			mutex_unlock(&global_mutex);
 			return -EFAULT;
 		}
 	} else {
@@ -139,12 +137,15 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 			}
 			strcpy(message,messageTemp);
 			strcpy(messageTemp,"");
+			mutex_unlock(&global_mutex);
 			return 0;
 		} else {
 			printk(KERN_INFO "testdev2: Failed to send %d characters to the user.\n", len);
+			mutex_unlock(&global_mutex);
 			return -EFAULT;
 		}
 	}
+	mutex_unlock(&global_mutex);
 }
 
 module_init(testdev2_init);
