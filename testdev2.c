@@ -118,7 +118,6 @@ static ssize_t dev_read(struct file* filep, char* buffer, size_t len, loff_t* of
 		}
 		if (err == 0) {
 			printk(KERN_INFO "testdev2: Sent %d characters to the user\n",messageSize);
-			printk(KERN_INFO "testdev2: %s\n",message);
 			strcpy(message,"");
 			messageSize = 0;
 			mutex_unlock(&global_mutex);
